@@ -148,7 +148,7 @@ function App() {
             setChatState((prev) => ({
                 ...prev,
                 isLoading: false,
-                error: 'THE ONE WILL BE REALLY TALENTED WILL ANSWER THIS',
+                error: 'Failed to generate answer',
             }));
         }
     };
@@ -285,11 +285,11 @@ function App() {
                             ))}
                             {chatState.isLoading && (
                                 <div className="loading-spinner">
-                                    <div className="loading-text">bhosdike pani to pine de</div>
+                                    <div className="loading-text">Loading...</div>
                                 </div>
                             )}
                             {chatState.error && (
-                                <div className="error-message">THE ONE WILL BE REALLY TALENTED WILL ANSWER THIS</div>
+                                <div className="error-message">Failed to generate answer</div>
                             )}
                         </div>
                     )}
