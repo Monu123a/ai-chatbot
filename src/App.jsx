@@ -7,17 +7,15 @@ import SettingsPanel from './components/Settings';
 import QuickActions from './components/QuickActions';
 import './styles.css';
 
-// This is my AI chatbot project for my portfolio
-// Using Gemini AI for text generation and Unsplash for images
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyBGwuQ51cvsZPhlULCOouK7a1NkwvZ_W8I');
 const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-// My Unsplash API key for image search
-const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
+// Unsplash API configuration
+const UNSPLASH_ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || 'nvupk-mbbHdRuuGYjfHgOdrHPZU7OS83cS7Ov460jf0';
 const UNSPLASH_API_URL = 'https://api.unsplash.com/search/photos';
 
 function App() {
-    // State variables for my chat app
     const [chatState, setChatState] = useState({
         messages: [],
         isLoading: false,
@@ -41,7 +39,7 @@ function App() {
         };
     });
 
-    // Load chat history when app starts
+    // Load chat history from localStorage on component mount
     useEffect(() => {
         const savedHistory = localStorage.getItem('chatHistory');
         if (savedHistory) {
@@ -49,22 +47,24 @@ function App() {
         }
     }, []);
 
-    // Save chat history when it changes
+    // Save chat history to localStorage whenever it changes
     useEffect(() => {
         if (appSettings.saveHistory) {
             localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
         }
     }, [chatHistory, appSettings.saveHistory]);
 
-    // Save settings when they change
+    // Save settings to localStorage whenever they change
     useEffect(() => {
         localStorage.setItem('appSettings', JSON.stringify(appSettings));
         document.documentElement.setAttribute('data-theme', appSettings.theme);
     }, [appSettings]);
 
-    // Function to search for images using Unsplash API
     const searchImage = async (query) => {
         try {
+            console.log('Searching image with query:', query);
+            console.log('Using Unsplash key:', UNSPLASH_ACCESS_KEY);
+            
             const response = await fetch(
                 `${UNSPLASH_API_URL}?query=${encodeURIComponent(query)}&per_page=1`,
                 {
@@ -75,6 +75,8 @@ function App() {
             );
 
             if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Unsplash API error:', errorData);
                 throw new Error('Failed to search image');
             }
 
@@ -90,7 +92,6 @@ function App() {
         }
     };
 
-    // Main function to handle sending messages
     const handleSendMessage = async (content) => {
         try {
             setChatState((prev) => ({
@@ -101,6 +102,7 @@ function App() {
 
             let response;
             if (chatState.currentMode === 'image') {
+                console.log('Generating image for:', content);
                 const imageUrl = await searchImage(content);
                 response = {
                     role: 'assistant',
@@ -108,6 +110,7 @@ function App() {
                     imageUrl: imageUrl
                 };
             } else {
+                console.log('Generating text for:', content);
                 const result = await model.generateContent(content);
                 const text = result.response.text();
                 response = {
@@ -149,6 +152,7 @@ function App() {
                 setChatState((prev) => ({ ...prev, currentChatId: newChat.id }));
             }
         } catch (error) {
+            console.error('Error in handleSendMessage:', error);
             setChatState((prev) => ({
                 ...prev,
                 isLoading: false,
@@ -157,7 +161,6 @@ function App() {
         }
     };
 
-    // Function to start a new chat
     const handleNewChat = () => {
         setChatState({
             messages: [],
@@ -169,7 +172,6 @@ function App() {
         setIsSidebarOpen(false);
     };
 
-    // Function to load an existing chat
     const handleLoadChat = (chatId) => {
         const chat = chatHistory.find((c) => c.id === chatId);
         if (chat) {
@@ -184,7 +186,6 @@ function App() {
         }
     };
 
-    // Function to delete a chat
     const handleDeleteChat = (chatId, e) => {
         e.stopPropagation();
         setChatHistory((prev) => prev.filter((chat) => chat.id !== chatId));
@@ -193,12 +194,10 @@ function App() {
         }
     };
 
-    // Function to toggle sidebar
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
     };
 
-    // Function to handle settings changes
     const handleSettingsChange = (newSettings) => {
         if (newSettings.clearHistory) {
             setChatHistory([]);
@@ -209,7 +208,6 @@ function App() {
         setAppSettings(newSettings);
     };
 
-    // Function to handle quick actions
     const handleQuickAction = (action) => {
         setChatState((prev) => ({
             ...prev,
@@ -222,7 +220,7 @@ function App() {
 
     return (
         <div className="app-container">
-            {/* Sidebar for chat history */}
+            {/* Sidebar */}
             <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
                     <button className="new-chat-button" onClick={handleNewChat}>
@@ -273,8 +271,9 @@ function App() {
                 </div>
             </div>
 
-            {/* Main chat area */}
+            {/* Main Content */}
             <div className="main-content">
+                {/* Header */}
                 <div className="header">
                     <button className="menu-button" onClick={toggleSidebar}>
                         <Menu className="w-6 h-6" />
@@ -283,33 +282,37 @@ function App() {
                     <h1>AI Chatbot</h1>
                 </div>
 
+                {/* Chat Container */}
                 <div className="chat-container">
                     {chatState.messages.length === 0 ? (
                         <QuickActions onSelectAction={handleQuickAction} />
                     ) : (
-                        <div className="messages-container">
-                            {chatState.messages.map((message, index) => (
-                                <ChatMessage key={index} message={message} />
-                            ))}
-                            {chatState.isLoading && (
-                                <div className="loading-spinner">
-                                    <div className="loading-text">Loading...</div>
-                                </div>
-                            )}
-                            {chatState.error && (
-                                <div className="error-message">Failed to generate answer</div>
-                            )}
-                        </div>
+                    <div className="messages-container">
+                        {chatState.messages.map((message, index) => (
+                            <ChatMessage key={index} message={message} />
+                        ))}
+                        {chatState.isLoading && (
+                            <div className="loading-spinner">
+                                <div className="loading-text">Loading...</div>
+                            </div>
+                        )}
+                        {chatState.error && (
+                            <div className="error-message">Failed to generate answer</div>
+                        )}
+                    </div>
                     )}
 
+                    {/* Input */}
                     <ChatInput onSend={handleSendMessage} isLoading={chatState.isLoading} />
                 </div>
 
+                {/* Footer */}
                 <div className="footer">
                     <p>Developed and designed by Harsh Ahlawat</p>
                 </div>
             </div>
 
+            {/* Settings Panel */}
             <SettingsPanel
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
